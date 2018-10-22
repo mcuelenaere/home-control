@@ -3,6 +3,7 @@
 const
   AndroidDetector = require('./android_detector'),
   Api = require('./api'),
+  Kodi = require('./kodi'),
   later = require('later'),
   moment = require('moment'),
   suncalc = require('suncalc');
@@ -40,8 +41,9 @@ function shouldLightsBeOn() {
   return now.isBetween(sunset, sleepyTime);
 }
 
-var det = new AndroidDetector('eth0');
-var api = new Api('localhost:8000');
+const det = new AndroidDetector('eth0');
+const api = new Api('localhost:8000');
+const kodi = new Kodi('ws://nas-maurus.local:9090/jsonrpc?kodi');
 
 // enable lights when Android device is detected and it's between sunset and sleepy time
 det.on('discover', (device) => {
@@ -57,6 +59,35 @@ det.on('discover', (device) => {
     );
   }
 });
+
+kodi.on('error', (err) => {
+  console.error(err);
+});
+let zetelWasEnabled = false;
+const onStartHandler = () => {
+  api.getAllDevices().then(devices => {
+    const zetel = devices.find(d => d.deviceName === 'zetel');
+    if (!zetel) {
+      return;
+    }
+
+    zetelWasEnabled = zetel.enabled;
+    if (zetel.enabled) {
+      console.log('Disabling zetel when Kodi play was started');
+      return api.disableLamps('zetel');
+    }
+  });
+};
+const onPauseHandler = () => {
+  if (zetelWasEnabled) {
+    console.log('Re-enabling zetel when Kodi play was paused');
+    api.enableLamps('zetel');
+  }
+};
+kodi.on('Player.OnPlay', onStartHandler);
+kodi.on('Player.OnResume', onStartHandler);
+kodi.on('Player.OnPause', onPauseHandler);
+kodi.on('Player.OnStop', onPauseHandler);
 
 // disable all lamps every day at 1h
 later.setInterval(() => {

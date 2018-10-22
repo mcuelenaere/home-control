@@ -76,6 +76,10 @@ class Api {
       }));
     });
   }
+
+  getAllDevices() {
+    return this._doGet('devices').then(res => res.devices);
+  }
 }
 
 module.exports = Api;
