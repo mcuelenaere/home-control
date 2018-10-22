@@ -1,5 +1,5 @@
 {
-  "name": "device-watcher",
+  "name": "home-control",
   "dependencies": {
     "later": "^1.2.0",
     "moment": "^2.12.0",
